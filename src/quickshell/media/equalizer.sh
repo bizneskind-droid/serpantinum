@@ -44,7 +44,15 @@ except:
     sys.exit(1)
 " "$vals" > "$PRESET_FILE.tmp.$$" && mv -f "$PRESET_FILE.tmp.$$" "$PRESET_FILE" || rm -f "$PRESET_FILE.tmp.$$"
 
-    easyeffects -l "$PRESET_NAME" >/dev/null 2>&1 &
+    # EasyEffects is single-instance: a second call only hands the preset to
+    # the running instance over D-Bus and exits. Start it detached (systemd-run)
+    # only when nothing is running — a raw background child is reaped with the
+    # shell and the panel would silently lose the EQ.
+    if pgrep -x easyeffects >/dev/null 2>&1; then
+        easyeffects -l "$PRESET_NAME" >/dev/null 2>&1 &
+    else
+        systemd-run --user --unit=ee-eq --collect /usr/bin/easyeffects -w -l "$PRESET_NAME" >/dev/null 2>&1
+    fi
 }
 
 save_preset() {
